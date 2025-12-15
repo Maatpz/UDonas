@@ -13,5 +13,4 @@ Landing page moderna para a marca de moda feminina **DonaS**, com painel adminis
 | Neon PostgreSQL | - | Banco de dados serverless |
 | Vercel Blob | - | Upload e armazenamento de imagens |
 | JWT | - | Autenticação com tokens |
-| bcryptjs | - | Hash de senhas |
-| shadcn/ui | - | Componentes de UI |
+
