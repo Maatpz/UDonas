@@ -6,7 +6,7 @@ Landing page moderna para a marca de moda feminina **DonaS**, com painel adminis
 
 | Tecnologia | Versão | Descrição |
 |------------|--------|-----------|
-| Next.js | 16 | Framework React com App Router |
+| Next.js | 15 | Framework React com App Router |
 | React | 18 | Biblioteca para interfaces |
 | TypeScript | 5.x | Tipagem estática |
 | Tailwind CSS | 4.x | Estilização utility-first |
