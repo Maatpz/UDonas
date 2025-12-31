@@ -159,7 +159,7 @@ CREATE TABLE page_views (
 - ✅ HTTPS obrigatório em produção
 - ✅ Rate limiting via Vercel (built-in)
 
-## 🗺️ Roadmap
+<!-- ## 🗺️ Roadmap
 
 - [ ] Sistema de carrinho de compras
 - [ ] Integração com Mercado Pago / Stripe
@@ -167,7 +167,7 @@ CREATE TABLE page_views (
 - [ ] Notificações por email (novos pedidos)
 - [ ] Relatórios de vendas e analytics avançado
 - [ ] Sistema de avaliações de produtos
----
+--- -->
 
 ## 👨‍💻 Autor
 
