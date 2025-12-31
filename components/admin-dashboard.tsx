@@ -1,10 +1,10 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -13,25 +13,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Pencil, Trash2, LogOut } from "lucide-react"
+import { Plus, LogOut } from "lucide-react"
 import type { JWTPayload } from "@/lib/auth"
-
-const CATEGORY_OPTIONS = [
-  { value: "vestido", label: "Vestido" },
-  { value: "saia", label: "Saia" },
-  { value: "blusa", label: "Blusa" },
-  { value: "body", label: "Body" },
-  { value: "calcinha", label: "Calcinha" },
-  { value: "conjunto", label: "Conjunto" },
-  { value: "calca", label: "Calça" },
-  { value: "short", label: "Short" },
-  { value: "macaquinho", label: "Macaquinho" },
-  { value: "cropped", label: "Cropped" },
-]
+import { StatsCard } from "@/components/admin/stats-card"
+import { CategoryFilter } from "@/components/admin/category-filter"
+import { ProductCard } from "@/components/admin/product-card"
+import { ProductFormFields } from "@/components/admin/product-form-fields"
 
 interface Product {
   id: string
@@ -39,7 +26,11 @@ interface Product {
   price: number
   image_url: string
   description: string | null
-  category: string | null 
+  category: string | null
+  active: boolean
+  sizes: string[]
+  colors: string[]
+  shopee_url: string | null 
 }
 
 interface AdminDashboardProps {
@@ -48,7 +39,10 @@ interface AdminDashboardProps {
 }
 
 export default function AdminDashboard({ initialProducts, admin }: AdminDashboardProps) {
+  
   const [products, setProducts] = useState<Product[]>(initialProducts)
+  const [dailyViews, setDailyViews] = useState<number>(0)
+  const [selectedCategory, setSelectedCategory] = useState<string>("all")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
@@ -62,8 +56,15 @@ export default function AdminDashboard({ initialProducts, admin }: AdminDashboar
     image_url: "",
     description: "",
     category: "",
+    active: true,
+    sizes: ["Único"],
+    colors: [] as string[],
+    shopee_url: "", 
   })
 
+  const [colorInput, setColorInput] = useState("")
+
+  // Funções de autenticação e navegação
   const handleLogout = async () => {
     try {
       await fetch("/api/auth/logout", { method: "POST" })
@@ -74,6 +75,7 @@ export default function AdminDashboard({ initialProducts, admin }: AdminDashboar
     }
   }
 
+  // Funções de gerenciamento de imagens
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -98,14 +100,13 @@ export default function AdminDashboard({ initialProducts, admin }: AdminDashboar
     } catch (error) {
       console.error("Error uploading image:", error)
       const errorMessage = error instanceof Error ? error.message : "Erro desconhecido"
-      alert(
-        `Erro ao fazer upload da imagem: ${errorMessage}\n\nDica: Você pode usar uma URL de imagem direta (ex: https://exemplo.com/imagem.jpg)`,
-      )
+      alert(`Erro ao fazer upload da imagem: ${errorMessage}`)
     } finally {
       setUploadingImage(false)
     }
   }
 
+  // Funções de CRUD de produtos
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
@@ -120,17 +121,31 @@ export default function AdminDashboard({ initialProducts, admin }: AdminDashboar
           image_url: formData.image_url,
           description: formData.description || null,
           category: formData.category || null,
+          active: formData.active,
+          sizes: formData.sizes,
+          colors: formData.colors,
+          shopee_url: formData.shopee_url || null,
         }),
       })
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.details || errorData.error || "Falha ao adicionar produto")
+        throw new Error(errorData.details || errorData.error || "Failed to add product")
       }
 
       const { product } = await response.json()
       setProducts([product, ...products])
-      setFormData({ name: "", price: "", image_url: "", description: "", category: "" })
+      setFormData({
+        name: "",
+        price: "",
+        image_url: "",
+        description: "",
+        category: "",
+        active: true,
+        sizes: ["Único"],
+        colors: [],
+        shopee_url: "", 
+      })
       setIsAddDialogOpen(false)
       router.refresh()
     } catch (error) {
@@ -157,18 +172,33 @@ export default function AdminDashboard({ initialProducts, admin }: AdminDashboar
           price: Number.parseFloat(formData.price),
           image_url: formData.image_url,
           description: formData.description || null,
-          category: formData.category || null, 
+          category: formData.category || null,
+          active: formData.active,
+          sizes: formData.sizes,
+          colors: formData.colors,
+          shopee_url: formData.shopee_url || null,
         }),
       })
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.details || errorData.error || "Falha ao atualizar produto")
+        throw new Error(errorData.details || errorData.error || "Failed to update product")
       }
 
       const { product } = await response.json()
+
       setProducts(products.map((p) => (p.id === editingProduct.id ? product : p)))
-      setFormData({ name: "", price: "", image_url: "", description: "", category: "" })
+      setFormData({
+        name: "",
+        price: "",
+        image_url: "",
+        description: "",
+        category: "",
+        active: true,
+        sizes: ["Único"],
+        colors: [],
+        shopee_url: "",
+      })
       setEditingProduct(null)
       setIsEditDialogOpen(false)
       router.refresh()
@@ -191,7 +221,7 @@ export default function AdminDashboard({ initialProducts, admin }: AdminDashboar
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.details || errorData.error || "Falha ao deletar produto")
+        throw new Error(errorData.error || "Failed to delete product")
       }
 
       setProducts(products.filter((p) => p.id !== id))
@@ -210,23 +240,126 @@ export default function AdminDashboard({ initialProducts, admin }: AdminDashboar
       price: product.price.toString(),
       image_url: product.image_url,
       description: product.description || "",
-      category: product.category || "", 
+      category: product.category || "",
+      active: product.active,
+      sizes: product.sizes || ["Único"],
+      colors: product.colors || [],
+      shopee_url: product.shopee_url || "",
     })
     setIsEditDialogOpen(true)
   }
 
-  const getCategoryLabel = (category: string | null) => {
-    if (!category) return null
-    const found = CATEGORY_OPTIONS.find((c) => c.value === category)
-    return found ? found.label : category
+  const fetchProducts = async () => {
+    try {
+      const token = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("admin_token="))
+        ?.split("=")[1]
+
+      const response = await fetch("/api/products", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setProducts(data.products)
+      }
+    } catch (error) {
+      console.error("Error fetching products:", error)
+    }
   }
+
+  const handleToggleActive = async (id: string, currentActive: boolean) => {
+    try {
+      const response = await fetch(`/api/products/${id}/toggle-active`, {
+        method: "PATCH",
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to toggle product status")
+      }
+
+      const data = await response.json()
+      const { product, message } = data
+
+      setProducts(products.map((p) => (p.id === id ? { ...p, active: product.active } : p)))
+      alert(message)
+      await fetchProducts()
+    } catch (error) {
+      console.error("Error toggling product status:", error)
+      const errorMessage = error instanceof Error ? error.message : "Erro desconhecido"
+      alert(`Erro: ${errorMessage}`)
+    }
+  }
+
+  const filteredProducts = products.filter((product) => {
+    if (selectedCategory === "all") return true
+    if (selectedCategory === "uncategorized") return !product.category
+    return product.category === selectedCategory
+  })
+
+  // Funções de gerenciamento de tamanhos e cores
+  const removeSize = (size: string) => {
+    setFormData({ ...formData, sizes: formData.sizes.filter((s) => s !== size) })
+  }
+
+  const handleSizeSelect = (size: string) => {
+    if (size === "Único") {
+      setFormData({ ...formData, sizes: ["Único"] })
+    } else {
+      const newSizes = formData.sizes.filter((s) => s !== "Único")
+      if (newSizes.includes(size)) {
+        setFormData({ ...formData, sizes: newSizes.filter((s) => s !== size) })
+      } else {
+        setFormData({ ...formData, sizes: [...newSizes, size] })
+      }
+    }
+  }
+
+  const addColor = () => {
+    if (colorInput && !formData.colors.includes(colorInput)) {
+      setFormData({ ...formData, colors: [...formData.colors, colorInput] })
+      setColorInput("")
+    }
+  }
+
+  const removeColor = (color: string) => {
+    setFormData({ ...formData, colors: formData.colors.filter((c) => c !== color) })
+  }
+
+
+  useEffect(() => {
+    const fetchDailyViews = async () => {
+      try {
+        const response = await fetch("/api/page-views")
+        if (response.ok) {
+          const data = await response.json()
+          setDailyViews(data.count)
+        }
+      } catch (error) {
+        console.error("Error fetching daily views:", error)
+      }
+    }
+
+    fetchDailyViews()
+    const interval = setInterval(fetchDailyViews, 10000)
+    return () => clearInterval(interval)
+  }, [])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-white">
+      {/* Header do painel admin */}
       <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-purple-600">Painel Administrativo</h1>
+            <a
+              href="/"
+              className="text-2xl font-bold text-purple-600 hover:text-purple-700 transition-colors cursor-pointer"
+            >
+              Painel Administrativo
+            </a>
             <p className="text-sm text-gray-600">{admin.email}</p>
           </div>
           <Button variant="outline" onClick={handleLogout} className="gap-2 bg-transparent">
@@ -237,8 +370,26 @@ export default function AdminDashboard({ initialProducts, admin }: AdminDashboar
       </header>
 
       <main className="container mx-auto px-4 py-8">
+        {/* Card de estatísticas de visitas */}
+        <div className="mb-6">
+          <StatsCard dailyViews={dailyViews} />
+        </div>
+
+    
+        <div className="mb-6">
+          <CategoryFilter
+            selectedCategory={selectedCategory}
+            products={products}
+            onCategoryChange={setSelectedCategory}
+          />
+        </div>
+
+       
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold">Produtos ({products.length})</h2>
+          <h2 className="text-xl font-semibold">
+            Produtos ({filteredProducts.length}
+            {selectedCategory !== "all" && ` de ${products.length}`})
+          </h2>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button className="gap-2 bg-purple-600 hover:bg-purple-700">
@@ -251,78 +402,20 @@ export default function AdminDashboard({ initialProducts, admin }: AdminDashboar
                 <DialogTitle>Adicionar Novo Produto</DialogTitle>
                 <DialogDescription>Preencha os dados do novo produto</DialogDescription>
               </DialogHeader>
+              {/* Formulário de adicionar produto */}
               <form onSubmit={handleAddProduct} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nome do Produto</Label>
-                  <Input
-                    id="name"
-                    required
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="category">Categoria</Label>
-                  <Select
-                    value={formData.category}
-                    onValueChange={(value) => setFormData({ ...formData, category: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione uma categoria" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CATEGORY_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="price">Preço (R$)</Label>
-                  <Input
-                    id="price"
-                    type="number"
-                    step="0.01"
-                    required
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="image">Imagem</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="image"
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      disabled={uploadingImage}
-                    />
-                  </div>
-                  <div className="text-sm text-gray-600">Ou use uma URL de imagem:</div>
-                  <Input
-                    placeholder="https://exemplo.com/imagem.jpg"
-                    value={formData.image_url}
-                    onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                  />
-                  {formData.image_url && (
-                    <img
-                      src={formData.image_url || "/placeholder.svg"}
-                      alt="Preview"
-                      className="w-full h-32 object-cover rounded"
-                    />
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="description">Descrição</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  />
-                </div>
+                <ProductFormFields
+                  formData={formData}
+                  setFormData={setFormData}
+                  handleImageUpload={handleImageUpload}
+                  uploadingImage={uploadingImage}
+                  colorInput={colorInput}
+                  setColorInput={setColorInput}
+                  handleSizeSelect={handleSizeSelect}
+                  removeSize={removeSize}
+                  addColor={addColor}
+                  removeColor={removeColor}
+                />
                 <Button
                   type="submit"
                   className="w-full bg-purple-600 hover:bg-purple-700"
@@ -335,49 +428,37 @@ export default function AdminDashboard({ initialProducts, admin }: AdminDashboar
           </Dialog>
         </div>
 
+        {/* Grid de produtos */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {products.map((product) => (
-            <Card key={product.id}>
-              <CardHeader className="p-0">
-                <img
-                  src={product.image_url || "/placeholder.svg"}
-                  alt={product.name}
-                  className="w-full h-48 object-cover rounded-t-lg"
-                />
-              </CardHeader>
-              <CardContent className="p-4">
-                <CardTitle className="text-lg mb-1">{product.name}</CardTitle>
-                {product.category && (
-                  <span className="inline-block px-2 py-1 text-xs font-medium bg-purple-100 text-purple-700 rounded-full mb-2">
-                    {getCategoryLabel(product.category)}
-                  </span>
-                )}
-                <CardDescription className="mb-4">{product.description}</CardDescription>
-                <p className="text-xl font-bold text-purple-600 mb-4">R$ {Number(product.price).toFixed(2)}</p>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 gap-2 bg-transparent"
-                    onClick={() => openEditDialog(product)}
-                  >
-                    <Pencil className="h-4 w-4" />
-                    Editar
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    className="flex-1 gap-2"
-                    onClick={() => handleDeleteProduct(product.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Excluir
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+          {filteredProducts.map((product) => (
+            <ProductCard
+              key={product.id}
+              product={product}
+              onEdit={openEditDialog}
+              onDelete={handleDeleteProduct}
+              onToggleActive={handleToggleActive}
+            />
           ))}
         </div>
+
+  
+        {filteredProducts.length === 0 && (
+          <Card className="p-8 text-center">
+            <p className="text-gray-500">
+              Nenhum produto encontrado nesta categoria.
+              {selectedCategory !== "all" && (
+                <Button
+                  variant="link"
+                  onClick={() => setSelectedCategory("all")}
+                  className="text-purple-600 hover:text-purple-700"
+                >
+                  Ver todos os produtos
+                </Button>
+              )}
+            </p>
+          </Card>
+        )}
+
 
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
           <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
@@ -386,77 +467,18 @@ export default function AdminDashboard({ initialProducts, admin }: AdminDashboar
               <DialogDescription>Atualize os dados do produto</DialogDescription>
             </DialogHeader>
             <form onSubmit={handleEditProduct} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-name">Nome do Produto</Label>
-                <Input
-                  id="edit-name"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-category">Categoria</Label>
-                <Select
-                  value={formData.category}
-                  onValueChange={(value) => setFormData({ ...formData, category: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione uma categoria" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CATEGORY_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-price">Preço (R$)</Label>
-                <Input
-                  id="edit-price"
-                  type="number"
-                  step="0.01"
-                  required
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-image">Imagem</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="edit-image"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    disabled={uploadingImage}
-                  />
-                </div>
-                <div className="text-sm text-gray-600">Ou use uma URL de imagem:</div>
-                <Input
-                  placeholder="https://exemplo.com/imagem.jpg"
-                  value={formData.image_url}
-                  onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                />
-                {formData.image_url && (
-                  <img
-                    src={formData.image_url || "/placeholder.svg"}
-                    alt="Preview"
-                    className="w-full h-32 object-cover rounded"
-                  />
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-description">Descrição</Label>
-                <Textarea
-                  id="edit-description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                />
-              </div>
+              <ProductFormFields
+                formData={formData}
+                setFormData={setFormData}
+                handleImageUpload={handleImageUpload}
+                uploadingImage={uploadingImage}
+                colorInput={colorInput}
+                setColorInput={setColorInput}
+                handleSizeSelect={handleSizeSelect}
+                removeSize={removeSize}
+                addColor={addColor}
+                removeColor={removeColor}
+              />
               <Button
                 type="submit"
                 className="w-full bg-purple-600 hover:bg-purple-700"

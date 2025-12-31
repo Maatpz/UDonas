@@ -2,15 +2,30 @@ import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
 import { getCurrentAdmin } from "@/lib/auth"
 
-// GET single product
+// ==============================
+// GET
+// ==============================
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { id } = params
+    const { id } = await params
 
     const result = await sql`
-      SELECT id, name, description, price, image_url, category, created_at, updated_at
+      SELECT 
+        id,
+        name,
+        description,
+        price,
+        image_url,
+        category,
+        active,
+        sizes,
+        colors,
+        shopee_url,
+        created_at,
+        updated_at
       FROM products
       WHERE id = ${id}
+        AND active = true
     `
 
     if (result.length === 0) {
@@ -31,118 +46,118 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-// PUT update product
-// export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
-//   try {
-    
-//     const admin = await getCurrentAdmin()
-//     if (!admin) {
-//       return NextResponse.json({ error: "Não autenticado. Faça login novamente." }, { status: 401 })
-//     }
-
-//     const { id } = params
-//     const { name, description, price, image_url, category } = await request.json()
-
-    
-//     if (!name || !price) {
-//       return NextResponse.json({ error: "Nome e preço são obrigatórios" }, { status: 400 })
-//     }
-
-//     const priceNum = Number.parseFloat(price)
-//     if (isNaN(priceNum) || priceNum < 0) {
-//       return NextResponse.json({ error: "Preço inválido" }, { status: 400 })
-//     }
-
-//     const result = await sql`
-//       UPDATE products
-//       SET 
-//         name = ${name},
-//         description = ${description || ""},
-//         price = ${priceNum},
-//         image_url = ${image_url || "/placeholder.svg?height=400&width=300"},
-//         category = ${category || null},
-//         updated_at = NOW()
-//       WHERE id = ${id}
-//       RETURNING id, name, description, price, image_url, category, created_at, updated_at
-//     `
-
-//     if (result.length === 0) {
-//       return NextResponse.json({ error: "Produto não encontrado" }, { status: 404 })
-//     }
-
-//     return NextResponse.json({
-//       success: true,
-//       product: result[0],
-//     })
-//   } catch (error) {
-//     console.error("Update product error:", error)
-//     const errorMessage = error instanceof Error ? error.message : "Erro desconhecido"
-//     return NextResponse.json(
-//       {
-//         error: "Erro ao atualizar produto",
-//         details: errorMessage,
-//       },
-//       { status: 500 },
-//     )
-//   }
-// }
-//------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
+// ==============================
+// PUT
+// ==============================
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const admin = await getCurrentAdmin()
     if (!admin) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
+      return NextResponse.json({ error: "Não autenticado. Faça login novamente." }, { status: 401 })
     }
 
-    const { id } = params
-    const { name, description, price, image_url, category } = await request.json()
+    const { id } = await params
+    const body = await request.json()
 
-    if (
-      typeof name !== "string" ||
-      name.trim().length < 3 ||
-      typeof price !== "number" ||
-      price <= 0
-    ) {
-      return NextResponse.json({ error: "Dados inválidos" }, { status: 400 })
+    const {
+      name,
+      description,
+      price,
+      image_url,
+      category,
+      active,
+      sizes,
+      colors,
+      shopee_url,
+    } = body
+
+    console.log("[API] Update product:", id)
+
+    // 🔒 Validações básicas
+    if (!name || !price) {
+      return NextResponse.json({ error: "Nome e preço são obrigatórios" }, { status: 400 })
     }
+
+    const priceNum = Number.parseFloat(price)
+    if (isNaN(priceNum) || priceNum < 0) {
+      return NextResponse.json({ error: "Preço inválido" }, { status: 400 })
+    }
+
+    // 🔗 Validação Shopee URL
+    if (shopee_url && !shopee_url.startsWith("https://shopee")) {
+      return NextResponse.json(
+        { error: "URL da Shopee inválida" },
+        { status: 400 }
+      )
+    }
+
+    const sizesArray =
+      Array.isArray(sizes) && sizes.length > 0 ? sizes : ["Único"]
+
+    const colorsArray =
+      Array.isArray(colors) ? colors : []
 
     const result = await sql`
       UPDATE products
-      SET
+      SET 
         name = ${name},
-        description = ${description ?? null},
-        price = ${price},
-        image_url = ${image_url ?? null},
-        category = ${category ?? null},
+        description = ${description || ""},
+        price = ${priceNum},
+        image_url = ${image_url || "/placeholder.svg?height=400&width=300"},
+        category = ${category || null},
+        active = ${active !== undefined ? active : true},
+        sizes = ${sizesArray},
+        colors = ${colorsArray},
+        shopee_url = ${shopee_url || null},
         updated_at = NOW()
       WHERE id = ${id}
-      RETURNING *
+      RETURNING 
+        id,
+        name,
+        description,
+        price,
+        image_url,
+        category,
+        active,
+        sizes,
+        colors,
+        shopee_url,
+        created_at,
+        updated_at
     `
 
     if (result.length === 0) {
       return NextResponse.json({ error: "Produto não encontrado" }, { status: 404 })
     }
 
-    return NextResponse.json({ product: result[0] })
+    return NextResponse.json({
+      success: true,
+      product: result[0],
+    })
   } catch (error) {
     console.error("Update product error:", error)
-    return NextResponse.json({ error: "Erro ao atualizar produto" }, { status: 500 })
+    const errorMessage = error instanceof Error ? error.message : "Erro desconhecido"
+    return NextResponse.json(
+      {
+        error: "Erro ao atualizar produto",
+        details: errorMessage,
+      },
+      { status: 500 },
+    )
   }
 }
 
-
-
-// DELETE product 
+// ==============================
+// DELETE
+// ==============================
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-  
     const admin = await getCurrentAdmin()
     if (!admin) {
       return NextResponse.json({ error: "Não autenticado. Faça login novamente." }, { status: 401 })
     }
 
-    const { id } = params
+    const { id } = await params
 
     const result = await sql`
       DELETE FROM products
@@ -167,5 +182,3 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     )
   }
 }
-
-

@@ -1,16 +1,3 @@
-/**
- * API DE LOGIN DO ADMINISTRADOR
- *
- * POST /api/auth/login
- * - Autentica o administrador com email e senha
- * - Retorna um token JWT armazenado em cookie HTTP-only
- *
- * SEGURANÇA:
- * - Senhas são hasheadas com bcrypt no banco
- * - Tokens JWT expiram em 24 horas
- * - Cookies são HTTP-only e secure em produção
- */
-
 import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
 import { createToken, setAuthToken } from "@/lib/auth"
@@ -78,8 +65,8 @@ export async function POST(request: NextRequest) {
       if (dbError.message && dbError.message.includes('relation "admins" does not exist')) {
         return NextResponse.json(
           {
-            error: "DATABASE_NOT_SETUP",
-            message: "Banco de dados não configurado. Redirecionando para configuração...",
+            error: "DATABASE_NOT_CONFIGURED",
+            message: "Banco de dados não configurado.",
           },
           { status: 503 },
         )
