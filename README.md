@@ -1,9 +1,4 @@
-# DonaS - Catálogo de Moda Feminina
-
-Landing page moderna para a marca de moda feminina **DonaS**, com painel administrativo completo para gerenciamento de produtos.
-
-
-# 👗 Catálogo de Produtos Donas
+# 👗 DonaS - Catálogo de Moda Feminina
 
 ![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?logo=typescript)
@@ -11,6 +6,8 @@ Landing page moderna para a marca de moda feminina **DonaS**, com painel adminis
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind-4.0-38B2AC?logo=tailwind-css)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
+
+Landing page moderna para a marca de moda feminina **DonaS**, com painel administrativo completo para gerenciamento de produtos.
 Sistema completo de catálogo de produtos com painel administrativo, autenticação, analytics de visitantes e integração com WhatsApp e Shopee. Perfeito para pequenos e médios negócios que querem uma presença online profissional.
 
 ---
